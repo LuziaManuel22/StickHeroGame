@@ -26,7 +26,7 @@ Instructions:
 
 Check Maven installation: Run mvn -version in your terminal and verify it displays the Maven version.
 
-4- Import the project as a Maven project within your IDE.
+4- Import the project as a JAVAFX and choose Maven project within your IDE.
 
 5- Run the application by right-clicking on the StickHeroGameApp.java (Main.java) class and selecting "Run."
 
