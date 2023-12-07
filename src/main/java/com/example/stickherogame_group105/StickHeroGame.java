@@ -17,6 +17,7 @@ import java.util.Random;
 
 public class StickHeroGame extends Application {
 
+    // Constants for dimensions
     private static final double PLATFORM_WIDTH = 100.0;
     private static final double PLATFORM_HEIGHT = 10.0;
     private static final double HERO_WIDTH = 20.0;
@@ -25,6 +26,7 @@ public class StickHeroGame extends Application {
     private Canvas gameCanvas;
     private GraphicsContext gc;
 
+    // UI elements
     private Button startButton;
     private Label scoreLabel;
     private Label cherriesLabel;
@@ -33,6 +35,7 @@ public class StickHeroGame extends Application {
     private Button restartButton;
     private Button powerUpButton;
 
+    // Game variables
     private int score = 0;
     private int cherries = 0;
     private int level = 1;
@@ -167,7 +170,16 @@ public class StickHeroGame extends Application {
     private void startGame() {
         resetGame();
         generatePlatform();
+        initializeHero(); // Add this line to initialize the hero
         extendStick();
+    }
+
+    private void initializeHero() {
+        hero = new Rectangle(HERO_WIDTH, HERO_HEIGHT, Color.BLUE);
+        hero.setTranslateX(gameCanvas.getWidth() / 2 - HERO_WIDTH / 2);
+        hero.setTranslateY(gameCanvas.getHeight() - PLATFORM_HEIGHT - HERO_HEIGHT);
+        gc.setFill(Color.BLUE);
+        gc.fillRect(hero.getTranslateX(), hero.getTranslateY(), HERO_WIDTH, HERO_HEIGHT);
     }
 
     private void resetGame() {
