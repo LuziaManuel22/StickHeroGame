@@ -1,37 +1,505 @@
 package com.example.stickherogame_group105;
 
-import javafx.animation.*;
+import javafx.animation.KeyFrame;
+import javafx.animation.KeyValue;
+import javafx.animation.Timeline;
 import javafx.application.Application;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.*;
-import javafx.scene.paint.Color;
-import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
 import javafx.util.Duration;
+import javafx.animation.AnimationTimer;
+import javafx.application.Application;
+import javafx.scene.Scene;
+import javafx.scene.layout.StackPane;
+import javafx.stage.Stage;
 
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
+import javafx.application.Application;
+import javafx.scene.Scene;
+import javafx.scene.layout.*;
+import javafx.stage.Stage;
 
+interface PlatformFactory {
+    Platform createPlatform(double width);
+}
+
+class PillarFactory implements PlatformFactory {
+    @Override
+    public Platform createPlatform(double width) {
+        return new Pillar(width);
+    }
+}
+
+class CherryFactory implements PlatformFactory {
+    @Override
+    public Platform createPlatform(double width) {
+        return new Cherry();
+    }
+}
+
+abstract class Platform implements Serializable {
+    private final double width;
+    private final double height;
+    private double x;
+    private double y;
+
+    Platform(double width) {
+        this.width = width;
+        this.height = 10.0;
+    }
+
+    abstract void draw();
+
+    abstract boolean collidesWith(double heroX, double heroY);
+
+    abstract void reactToCollision(StickHeroGameModel gameModel);
+
+    double getWidth() {
+        return width;
+    }
+
+    double getHeight() {
+        return height;
+    }
+
+    double getX() {
+        return x;
+    }
+
+    double getY() {
+        return y;
+    }
+
+    void setX(double x) {
+        this.x = x;
+    }
+
+    void setY(double y) {
+        this.y = y;
+    }
+}
+
+class Pillar extends Platform {
+    Pillar(double width) {
+        super(width);
+    }
+
+    @Override
+    void draw() {
+        // Implement pillar drawing logic with varying widths
+    }
+
+    @Override
+    boolean collidesWith(double heroX, double heroY) {
+        return heroX >= getX() && heroX <= getX() + getWidth() &&
+                heroY >= getY() && heroY <= getY() + getHeight();
+    }
+
+    @Override
+    void reactToCollision(StickHeroGameModel gameModel) {
+        if (gameModel.isRevived()) {
+            gameModel.incrementCherries();
+            gameModel.incrementScore(50); // Example: Score increases on collecting cherries
+        } else {
+            gameModel.fallIntoAbyss();
+        }
+    }
+}
+
+class Cherry extends Platform {
+    Cherry() {
+        super(StickHeroGameModel.PLATFORM_WIDTH);
+    }
+
+    @Override
+    void draw() {
+        // Implement cherry drawing logic
+    }
+
+    @Override
+    boolean collidesWith(double heroX, double heroY) {
+        return heroX >= getX() && heroX <= getX() + getWidth() &&
+                heroY >= getY() && heroY <= getY() + getHeight();
+    }
+
+    @Override
+    void reactToCollision(StickHeroGameModel gameModel) {
+        gameModel.collectCherry();
+    }
+
+    void spawn(Platform platform) {
+        setX(platform.getX() + (platform.getWidth() - getWidth()) / 2);
+        setY(platform.getY() - getHeight());
+        draw();
+    }
+}
+
+class Stick {
+    private final double length;
+
+    Stick(double length) {
+        this.length = length;
+    }
+
+    void extend() {
+        // Implement stick extension logic
+    }
+
+    double getLength() {
+        return length;
+    }
+}
+
+class StickHeroGameModel implements Serializable {
+    static final double PLATFORM_WIDTH = 100.0;
+    static final double MAX_STICK_LENGTH = 200.0;
+    private transient Canvas gameCanvas;
+    private List<Platform> platforms;
+    private List<PlatformFactory> platformFactories;
+    private Stick stick;
+    private int score = 0;
+    private int cherriesCollected = 0;
+    private boolean isRevived = false;
+    private boolean isFalling = false;
+
+    private static final int SCORE_REVIVE_USED = 50; // Adjust the score deducted for revival
+
+    StickHeroGameModel() {
+        this.platforms = new ArrayList<>();
+        this.platformFactories = new ArrayList<>();
+        this.platformFactories.add(new PillarFactory());
+        this.platformFactories.add(new CherryFactory());
+        this.stick = new Stick(0);
+    }
+
+    void resetGame() {
+        platforms.clear();
+        isRevived = false;
+        isFalling = false;
+        score = 0;
+        cherriesCollected = 0;
+        stick = new Stick(0);
+    }
+
+    void generatePlatform() {
+        int randomFactoryIndex = new Random().nextInt(platformFactories.size());
+        PlatformFactory factory = platformFactories.get(randomFactoryIndex);
+
+        if (factory instanceof PillarFactory) {
+            double pillarWidth = new Random().nextDouble() * 100 + 50;
+            Platform platform = factory.createPlatform(pillarWidth);
+            platforms.add(platform);
+        } else {
+            Platform platform = factory.createPlatform(new Random().nextDouble() * 150 + 50);
+            platforms.add(platform);
+        }
+
+        platforms.get(platforms.size() - 1).draw();
+    }
+
+    void extendStick() {
+        if (!isFalling) {
+            stick.extend();
+        }
+    }
+
+    void moveStick(double deltaX) {
+        // Implement stick movement logic based on user input
+    }
+
+    void checkCollision() {
+        if (!isFalling) {
+            double stickLength = stick.getLength();
+            double heroX = gameCanvas.getTranslateX() + stickLength;
+            double heroY = gameCanvas.getTranslateY();
+
+            for (Platform platform : platforms) {
+                if (platform.collidesWith(heroX, heroY)) {
+                    platform.reactToCollision(this);
+                    break;
+                }
+            }
+        }
+    }
+
+    void revivePlayer() {
+        int cherriesRequiredForRevival = 5;
+        if (cherriesCollected >= cherriesRequiredForRevival && !isRevived) {
+            System.out.println("Reviving player!");
+            isRevived = true;
+            cherriesCollected -= cherriesRequiredForRevival;
+            decrementScore();
+        }
+    }
+
+    void fallIntoAbyss() {
+        System.out.println("Falling into the abyss!");
+        isFalling = true;
+        // Implement logic for falling animation or game over screen
+    }
+
+    void collectCherry() {
+        incrementScore(50); // Example: Score increases on collecting cherries
+        incrementCherries();
+    }
+
+    private void decrementScore() {
+        score = Math.max(0, score - StickHeroGameModel.SCORE_REVIVE_USED);
+    }
+
+    int getScore() {
+        return score;
+    }
+
+    int getCherries() {
+        return cherriesCollected;
+    }
+
+    int getLevel() {
+        return platforms.size(); // Assuming each platform represents a level
+    }
+
+    void incrementScore(int points) {
+        score += points;
+    }
+
+    void incrementCherries() {
+        cherriesCollected++;
+    }
+
+    boolean isRevived() {
+        return isRevived;
+    }
+
+    void saveGame() {
+        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream("stick_hero_save.dat"))) {
+            oos.writeObject(this);
+            System.out.println("Game saved successfully!");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    void loadGame() {
+        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream("stick_hero_save.dat"))) {
+            StickHeroGameModel loadedGame = (StickHeroGameModel) ois.readObject();
+            this.platforms = loadedGame.platforms;
+            this.platformFactories = loadedGame.platformFactories;
+            this.score = loadedGame.score;
+            this.cherriesCollected = loadedGame.cherriesCollected;
+            this.isRevived = loadedGame.isRevived;
+            this.isFalling = loadedGame.isFalling;
+            this.stick = loadedGame.stick;
+
+            System.out.println("Game loaded successfully!");
+        } catch (IOException | ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void changeBackgroundColor() {
+        // Implement background color change logic
+    }
+
+    public void flipPlayer() {
+        // Implement player flipping logic
+    }
+
+    public void setGameCanvas(Canvas gameCanvas) {
+        this.gameCanvas = gameCanvas;
+    }
+
+    public void spawnCherryOnPlatform() {
+        // Implement cherry spawning logic on a platform
+    }
+
+    public double getStickLength() {
+        return stick.getLength();
+    }
+}
+
+class StickHeroGameController {
+    private final StickHeroGameModel gameModel;
+
+    StickHeroGameController(Stage primaryStage, StickHeroGameModel gameModel) {
+        this.gameModel = gameModel;
+    }
+
+    void initializeGame(StickHeroGameView gameView) {
+        gameView.setupUI(this);
+        gameView.animateBackgroundColorChange();
+        gameView.setupEventHandlers(this);
+    }
+
+    void startGame(StickHeroGameView gameView) {
+        gameModel.resetGame();
+        gameModel.generatePlatform();
+        gameModel.extendStick();
+        gameModel.spawnCherryOnPlatform();
+        gameView.disableStartButton();
+    }
+
+    void restartGame() {
+        gameModel.resetGame();
+    }
+
+    void extendStick() {
+        gameModel.extendStick();
+    }
+
+    void moveStick(double deltaX) {
+        gameModel.moveStick(deltaX);
+    }
+
+    void flipPlayer() {
+        gameModel.flipPlayer();
+    }
+
+    void revivePlayer() {
+        gameModel.revivePlayer();
+    }
+
+    void activatePowerUp() {
+        // Implement power-up logic
+    }
+
+    void saveGame() {
+        gameModel.saveGame();
+    }
+
+    void loadGame() {
+        gameModel.loadGame();
+    }
+}
+class StickHeroGameView {
+    private Stage primaryStage;
+    private StickHeroGameModel gameModel;
+    private StickHeroGameController gameController;
+
+    private Canvas gameCanvas;
+
+    private Button startButton;
+    private Button restartButton;
+    private Button powerUpButton;
+
+    private Label scoreLabel;
+    private Label cherriesLabel;
+    private Label levelLabel;
+    private ProgressBar stickProgressBar;
+
+    public StickHeroGameView(Stage primaryStage, StickHeroGameModel gameModel, StickHeroGameController gameController) {
+        this.primaryStage = primaryStage;
+        this.gameModel = gameModel;
+        this.gameController = gameController;
+    }
+
+    public void setupUI(StickHeroGameController gameController) {
+        setupCanvas();
+        setupButtons();
+        setupLabels();
+        setupLayout();
+    }
+
+    public void setupCanvas() {
+        gameCanvas = new Canvas(800, 600);
+        gameModel.setGameCanvas(gameCanvas);
+    }
+
+    public void setupButtons() {
+        startButton = new Button("Start");
+        startButton.setOnAction(e -> gameController.startGame(this));
+
+        restartButton = new Button("Restart");
+        restartButton.setOnAction(e -> gameController.restartGame());
+
+        powerUpButton = new Button("Power Up!");
+        powerUpButton.setOnAction(e -> gameController.activatePowerUp());
+    }
+
+    public void setupLabels() {
+        scoreLabel = new Label("Score: 0");
+        cherriesLabel = new Label("Cherries: 0");
+        levelLabel = new Label("Level: 1");
+
+        stickProgressBar = new ProgressBar(0);
+        stickProgressBar.setMinWidth(200);
+    }
+
+    public void setupLayout() {
+        HBox topContainer = new HBox(10, scoreLabel, cherriesLabel, levelLabel);
+        topContainer.setAlignment(Pos.CENTER);
+
+        HBox bottomContainer = new HBox(10, startButton, stickProgressBar, powerUpButton, restartButton);
+        bottomContainer.setAlignment(Pos.CENTER);
+
+        VBox uiContainer = new VBox(20, topContainer, bottomContainer);
+        uiContainer.setAlignment(Pos.CENTER);
+
+        StackPane root = new StackPane(gameCanvas);
+        root.getChildren().add(uiContainer);
+
+        Scene scene = new Scene(root, 800, 600);
+        scene.setOnKeyPressed(e -> handleKeyPress(e.getCode()));
+        primaryStage.setScene(scene);
+        primaryStage.setTitle("Stick Hero Game");
+    }
+
+    private void handleKeyPress(KeyCode code) {
+        if (code == KeyCode.SPACE) {
+            gameController.flipPlayer();
+        }
+    }
+
+    public void animateBackgroundColorChange() {
+    }
+
+    public void setupEventHandlers(StickHeroGameController stickHeroGameController) {
+    }
+
+    public void disableStartButton() {
+    }
+
+    public void updateCanvas() {
+    }
+
+
+    public class StickHeroGame extends Application {
+    public static void main(String[] args) {
+        launch(args);
+    }
+
+    @Override
+    public void start(Stage primaryStage) {
+        StickHeroGameModel gameModel = new StickHeroGameModel();
+        StickHeroGameController gameController = new StickHeroGameController(primaryStage, gameModel);
+        StickHeroGameView gameView = new StickHeroGameView(primaryStage, gameModel, gameController);
+
+        gameController.initializeGame(gameView);
+
+        primaryStage.setTitle("Stick Hero Game");
+        primaryStage.setScene(new Scene(new StackPane(gameView.getGameCanvas())));
+        primaryStage.show();
+    }
+}
+
+    Node getGameCanvas() {
+        return null;
+    }}
 public class StickHeroGame extends Application {
-
-    private GameCanvas gameCanvas;
-    private ScoreLabel scoreLabel;
-    private CherriesLabel cherriesLabel;
-    private StickProgressBar stickProgressBar;
-    private SaveButton saveButton;
-
-    private StickHero stickHero;
-    private List<Pillar> pillars;
-
     private AnimationTimer gameLoop;
-
-    private int highestScore;
+    private StickHeroGameModel gameModel;
+    private StickHeroGameController gameController;
+    private StickHeroGameView gameView;
 
     public static void main(String[] args) {
         launch(args);
@@ -39,381 +507,24 @@ public class StickHeroGame extends Application {
 
     @Override
     public void start(Stage primaryStage) {
-        createUI(primaryStage);
-        animateBackgroundColorChange();
-    }
+        gameModel = new StickHeroGameModel();
+        gameController = new StickHeroGameController(primaryStage, gameModel);
+        gameView = new StickHeroGameView(primaryStage, gameModel, gameController);
 
-    private void animateBackgroundColorChange() {
-        // Animation logic for background color change (if needed)
-    }
+        gameController.initializeGame(gameView);
 
-    private void createUI(Stage primaryStage) {
-        gameCanvas = new GameCanvas(400, 250);
-        scoreLabel = new ScoreLabel();
-        cherriesLabel = new CherriesLabel();
-        stickProgressBar = new StickProgressBar();
-        saveButton = new SaveButton();
-
-        setupButtons();
-        setupLayout(primaryStage);
-        setupKeyEvents();
-        createGameLoop();  // Move this line to ensure gameLoop is initialized
-        loadHighestScore(); // Load the highest score when the game starts
-    }
-
-    private void setupButtons() {
-        saveButton.setOnAction(e -> saveProgress());
-    }
-
-    private void setupLayout(Stage primaryStage) {
-        HBox topContainer = new HBox(10, scoreLabel, cherriesLabel, saveButton);
-        topContainer.setAlignment(Pos.CENTER);
-
-        HBox bottomContainer = new HBox(10, stickProgressBar);
-        bottomContainer.setAlignment(Pos.CENTER);
-
-        VBox uiContainer = new VBox(20, topContainer, bottomContainer);
-        uiContainer.setAlignment(Pos.CENTER);
-
-        BorderPane root = new BorderPane();
-        root.setCenter(gameCanvas);
-        root.setBottom(uiContainer);
-
-        Scene scene = new Scene(root, 400, 400);
-        primaryStage.setScene(scene);
         primaryStage.setTitle("Stick Hero Game");
+        StackPane root = new StackPane(gameView.getGameCanvas());
+        primaryStage.setScene(new Scene(root));
         primaryStage.show();
 
-        startGame(); // Start the game when the UI is ready
-    }
-
-    private void setupKeyEvents() {
-        gameCanvas.setOnKeyPressed(e -> {
-            if (e.getCode() == KeyCode.SPACE) {
-                stickHero.flip();
-            }
-        });
-    }
-
-    private void createGameLoop() {
         gameLoop = new AnimationTimer() {
             @Override
             public void handle(long now) {
-                updateGame();
-                renderGame();
+                // Add your game loop logic here
+                gameView.updateCanvas();  // For example, update the canvas in each frame
             }
         };
-    }
-
-    private void startGame() {
-        resetGame();
-        generatePillars();
-        initializeStickHero();
-        extendStick();
         gameLoop.start();
-    }
-
-    private void initializeStickHero() {
-        stickHero = new StickHero();
-        gameCanvas.getChildren().add(stickHero.getHero());
-    }
-
-    private void resetGame() {
-        scoreLabel.reset();
-        cherriesLabel.reset();
-        pillars = new ArrayList<>();
-        stickProgressBar.reset();
-        if (stickHero != null) {
-            gameCanvas.getChildren().remove(stickHero.getHero());
-            stickHero.reset();
-        }
-    }
-
-    private void updateGame() {
-        checkCollision();
-        // Add any other game logic updates here
-    }
-
-    private void renderGame() {
-        drawBackground();
-        for (Pillar pillar : pillars) {
-            pillar.render(gameCanvas.getGraphicsContext());
-        }
-        if (stickHero != null) {
-            stickHero.render(gameCanvas.getGraphicsContext());
-        }
-    }
-
-    private void generatePillars() {
-        double gapBetweenPillars = 150; // Adjust this value as needed
-
-        for (int i = 0; i < 5; i++) { // Generate 5 pillars (you can change this number)
-            double randomWidth = Math.random() * 100 + 50; // Adjust the range for pillar width
-            Pillar pillar = new Pillar(randomWidth);
-            pillars.add(pillar);
-
-            double xPosition = i * gapBetweenPillars + gameCanvas.getWidth(); // Position each pillar with a gap
-            double yPosition = gameCanvas.getHeight() - Pillar.PILLAR_HEIGHT; // Adjust the height as needed
-            pillar.setPosition(xPosition, yPosition);
-        }
-    }
-
-    private void checkCollision() {
-        if (stickHero == null) return;
-
-        double heroX = stickHero.getX() + stickHero.getWidth();
-        double heroY = stickHero.getY();
-
-        // Check if the hero has landed on a pillar
-        for (Pillar pillar : pillars) {
-            double pillarX = pillar.getX();
-            double pillarWidth = pillar.getWidth();
-
-            if (heroX >= pillarX && heroX <= pillarX + pillarWidth && heroY == gameCanvas.getHeight() - Pillar.PILLAR_HEIGHT) {
-                retractStick(); // Successful landing on the platform
-                return;
-            }
-        }
-
-        // Check if the hero has fallen off the screen
-        if (heroY > gameCanvas.getHeight()) {
-            fallAnimation(); // If no successful landing, initiate fall animation
-        }
-    }
-
-    private void fallAnimation() {
-        // Animation logic for hero falling off the screen
-        // You can add more details to the animation
-        gameLoop.stop();
-    }
-
-    private void retractStick() {
-        // Animation logic for retracting the stick
-        // You can add more details to the animation
-        gameLoop.stop();
-    }
-
-    private void extendStick() {
-        double stickLength = 100; // Adjust this value as needed
-        if (stickHero != null) {
-            stickHero.extendStick(stickLength);
-
-            // You may want to update the progress bar or any other UI elements here
-            stickProgressBar.increaseProgress(0.2); // Assuming the progress bar supports increments
-
-            // Check for collision after extending the stick
-            Timeline timeline = new Timeline(
-                    new KeyFrame(Duration.seconds(1),
-                            new KeyValue(stickProgressBar.progressProperty(), 1)
-                    )
-            );
-            timeline.setOnFinished(e -> {
-                checkCollision();
-            });
-            timeline.play();
-        }
-    }
-
-    private void drawBackground() {
-        gameCanvas.getGraphicsContext().setFill(Color.LIGHTGRAY);
-        gameCanvas.getGraphicsContext().fillRect(0, 0, gameCanvas.getWidth(), gameCanvas.getHeight());
-    }
-
-    private void saveProgress() {
-        // Save player's progress to storage
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter("progress.txt"))) {
-            writer.write(Integer.toString(scoreLabel.getScore()));
-        } catch (IOException e) {
-            e.printStackTrace();
-            // Handle the exception appropriately in a real application
-        }
-    }
-
-    private void loadHighestScore() {
-        File progressFile = new File("progress.txt");
-
-        // Check if the file exists, read the highest score if it does
-        if (progressFile.exists()) {
-            try (BufferedReader reader = new BufferedReader(new FileReader(progressFile))) {
-                highestScore = Integer.parseInt(reader.readLine());
-            } catch (IOException | NumberFormatException e) {
-                e.printStackTrace();
-                // Handle the exception appropriately in a real application
-            }
-        }
-    }
-
-    class GameCanvas extends Pane {
-
-        public GameCanvas(double width, double height) {
-            setPrefSize(width, height);
-        }
-
-        public GraphicsContext getGraphicsContext() {
-            return getChildren().isEmpty() ? null : ((Canvas) getChildren().get(0)).getGraphicsContext2D();
-        }
-    }
-
-    class ScoreLabel extends Label {
-
-        private int score;
-
-        public ScoreLabel() {
-            this.score = 0;
-            setText("Score: " + score);
-        }
-
-        public void reset() {
-            score = 0;
-            updateLabel();
-        }
-
-        public void increaseScore(int points) {
-            score += points;
-            updateLabel();
-        }
-
-        public int getScore() {
-            return score;
-        }
-
-        private void updateLabel() {
-            setText("Score: " + score);
-        }
-    }
-
-    class CherriesLabel extends Label {
-
-        private int cherries;
-
-        public CherriesLabel() {
-            this.cherries = 0;
-            setText("Cherries: " + cherries);
-        }
-
-        public void reset() {
-            cherries = 0;
-            updateLabel();
-        }
-
-        public void increaseCherries(int collectedCherries) {
-            cherries += collectedCherries;
-            updateLabel();
-        }
-
-        private void updateLabel() {
-            setText("Cherries: " + cherries);
-        }
-    }
-
-    class StickProgressBar extends ProgressBar {
-
-        public StickProgressBar() {
-            setProgress(0);
-            setMinWidth(200);
-        }
-
-        public void reset() {
-            setProgress(0);
-        }
-
-        public void increaseProgress(double value) {
-            setProgress(getProgress() + value);
-        }
-    }
-
-    class SaveButton extends Button {
-
-        public SaveButton() {
-            setText("Save");
-        }
-    }
-
-    class StickHero {
-
-        private Rectangle hero;
-        private boolean isFlipped;
-
-        public StickHero() {
-            initializeHero();
-        }
-
-        public void reset() {
-            initializeHero();
-            isFlipped = false;
-        }
-
-        public void flip() {
-            // Placeholder for flipping logic
-            // Replace this with the actual logic
-            isFlipped = !isFlipped;
-        }
-
-        public void render(GraphicsContext gc) {
-            // Placeholder for rendering logic
-            // Replace this with the actual rendering logic
-            gc.setFill(isFlipped ? Color.BLUE : Color.RED);
-            gc.fillRect(hero.getX(), hero.getY(), hero.getWidth(), hero.getHeight());
-        }
-
-        public void extendStick(double length) {
-            // Placeholder for extending stick logic
-            // Replace this with the actual logic
-        }
-
-        public double getX() {
-            return hero.getX();
-        }
-
-        public double getY() {
-            return hero.getY();
-        }
-
-        public double getWidth() {
-            return hero.getWidth();
-        }
-
-        public Rectangle getHero() {
-            return hero;
-        }
-
-        private void initializeHero() {
-            hero = new Rectangle(30, 30, Color.RED);
-        }
-    }
-
-    class Pillar {
-
-        public static final int PILLAR_HEIGHT = 20;
-
-        private Rectangle pillar;
-
-        public Pillar(double width) {
-            initializePillar(width);
-        }
-
-        public void render(GraphicsContext gc) {
-            // Placeholder for rendering logic
-            // Replace this with the actual rendering logic
-            gc.setFill(Color.GREEN);
-            gc.fillRect(pillar.getX(), pillar.getY(), pillar.getWidth(), PILLAR_HEIGHT);
-        }
-
-        public double getX() {
-            return pillar.getX();
-        }
-
-        public double getWidth() {
-            return pillar.getWidth();
-        }
-
-        public void setPosition(double x, double y) {
-            pillar.setX(x);
-            pillar.setY(y);
-        }
-
-        private void initializePillar(double width) {
-            pillar = new Rectangle(width, PILLAR_HEIGHT, Color.GREEN);
-        }
     }
 }
