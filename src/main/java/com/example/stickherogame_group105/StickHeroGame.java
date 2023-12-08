@@ -13,6 +13,7 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 
 import java.io.*;
@@ -49,7 +50,7 @@ abstract class Platform implements Serializable {
         this.height = 10.0;
     }
 
-    abstract void draw();
+    abstract void draw(GraphicsContext graphicsContext, double canvasWidth);
 
     abstract boolean collidesWith(double heroX, double heroY);
 
@@ -86,8 +87,9 @@ class Pillar extends Platform {
     }
 
     @Override
-    void draw() {
-        // Implement pillar drawing logic with varying widths
+    void draw(GraphicsContext graphicsContext, double canvasWidth) {
+        graphicsContext.setFill(Color.BROWN);
+        graphicsContext.fillRect(getX(), getY(), getWidth(), getHeight());
     }
 
     @Override
@@ -113,8 +115,9 @@ class Cherry extends Platform {
     }
 
     @Override
-    void draw() {
-        // Implement cherry drawing logic
+    void draw(GraphicsContext graphicsContext, double canvasWidth) {
+        graphicsContext.setFill(Color.RED);
+        graphicsContext.fillOval(getX(), getY(), getWidth(), getHeight());
     }
 
     @Override
@@ -132,6 +135,9 @@ class Cherry extends Platform {
         setX(platform.getX() + (platform.getWidth() - getWidth()) / 2);
         setY(platform.getY() - getHeight());
         draw();
+    }
+
+    private void draw() {
     }
 }
 
@@ -186,16 +192,20 @@ class StickHeroGameModel implements Serializable {
         int randomFactoryIndex = new Random().nextInt(platformFactories.size());
         PlatformFactory factory = platformFactories.get(randomFactoryIndex);
 
+        Platform platform;
         if (factory instanceof PillarFactory) {
             double pillarWidth = new Random().nextDouble() * 100 + 50;
-            Platform platform = factory.createPlatform(pillarWidth);
-            platforms.add(platform);
+            platform = factory.createPlatform(pillarWidth);
         } else {
-            Platform platform = factory.createPlatform(new Random().nextDouble() * 150 + 50);
-            platforms.add(platform);
+            platform = factory.createPlatform(new Random().nextDouble() * 150 + 50);
         }
 
-        platforms.get(platforms.size() - 1).draw();
+        double canvasWidth = gameCanvas.getWidth();
+        platform.setX(Math.random() * (canvasWidth - platform.getWidth()));
+        platform.setY(gameCanvas.getHeight() - platform.getHeight());
+        platforms.add(platform);
+
+        platform.draw(gameCanvas.getGraphicsContext2D(), canvasWidth);
     }
 
     void extendStick() {
@@ -317,6 +327,10 @@ class StickHeroGameModel implements Serializable {
     public double getStickLength() {
         return stick.getLength();
     }
+
+    public Platform[] getPlatforms() {
+        return new Platform[0];
+    }
 }
 
 class StickHeroGameController {
@@ -338,6 +352,18 @@ class StickHeroGameController {
         gameModel.extendStick();
         gameModel.spawnCherryOnPlatform();
         gameView.disableStartButton();
+        startGameLoop(gameView);
+    }
+
+    private void startGameLoop(StickHeroGameView gameView) {
+        new AnimationTimer() {
+            @Override
+            public void handle(long now) {
+                gameModel.checkCollision();
+                gameModel.extendStick();
+                gameView.updateCanvas(gameModel);
+            }
+        }.start();
     }
 
     void restartGame() {
@@ -466,8 +492,15 @@ class StickHeroGameView {
         startButton.setDisable(true);
     }
 
-    void updateCanvas() {
-        // Implement canvas update logic
+    void updateCanvas(StickHeroGameModel gameModel) {
+        GraphicsContext graphicsContext = gameCanvas.getGraphicsContext2D();
+        graphicsContext.clearRect(0, 0, gameCanvas.getWidth(), gameCanvas.getHeight());
+
+        for (Platform platform : gameModel.getPlatforms()) {
+            platform.draw(graphicsContext, gameCanvas.getWidth());
+        }
+
+        // Draw other game elements as needed
     }
 
     VBox getUIContainer() {
@@ -492,9 +525,13 @@ public class StickHeroGame extends Application {
 
         gameController.initializeGame(gameView);
 
+        primaryStage.setOnCloseRequest(event -> {
+            // Handle any cleanup or save operations before closing the application
+        });
+
         primaryStage.setTitle("Stick Hero Game");
         StackPane root = new StackPane(gameView.getGameCanvas(), gameView.getUIContainer());
-        primaryStage.setScene(new Scene(root));
+        primaryStage.setScene(new Scene(root, 800, 600));
         primaryStage.show();
     }
 }
