@@ -1,33 +1,24 @@
 package com.example.stickherogame_group105;
 
-import javafx.animation.KeyFrame;
-import javafx.animation.KeyValue;
-import javafx.animation.Timeline;
+import javafx.animation.AnimationTimer;
 import javafx.application.Application;
 import javafx.geometry.Pos;
-import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
-import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.ProgressBar;
 import javafx.scene.input.KeyCode;
-import javafx.scene.layout.*;
-import javafx.stage.Stage;
-import javafx.util.Duration;
-import javafx.animation.AnimationTimer;
-import javafx.application.Application;
-import javafx.scene.Scene;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-import javafx.application.Application;
-import javafx.scene.Scene;
-import javafx.scene.layout.*;
-import javafx.stage.Stage;
 
 interface PlatformFactory {
     Platform createPlatform(double width);
@@ -109,7 +100,7 @@ class Pillar extends Platform {
     void reactToCollision(StickHeroGameModel gameModel) {
         if (gameModel.isRevived()) {
             gameModel.incrementCherries();
-            gameModel.incrementScore(50); // Example: Score increases on collecting cherries
+            gameModel.incrementScore(50);
         } else {
             gameModel.fallIntoAbyss();
         }
@@ -172,7 +163,7 @@ class StickHeroGameModel implements Serializable {
     private boolean isRevived = false;
     private boolean isFalling = false;
 
-    private static final int SCORE_REVIVE_USED = 50; // Adjust the score deducted for revival
+    private static final int SCORE_REVIVE_USED = 50;
 
     StickHeroGameModel() {
         this.platforms = new ArrayList<>();
@@ -249,7 +240,7 @@ class StickHeroGameModel implements Serializable {
     }
 
     void collectCherry() {
-        incrementScore(50); // Example: Score increases on collecting cherries
+        incrementScore(50);
         incrementCherries();
     }
 
@@ -381,6 +372,7 @@ class StickHeroGameController {
         gameModel.loadGame();
     }
 }
+
 class StickHeroGameView {
     private Stage primaryStage;
     private StickHeroGameModel gameModel;
@@ -397,25 +389,27 @@ class StickHeroGameView {
     private Label levelLabel;
     private ProgressBar stickProgressBar;
 
-    public StickHeroGameView(Stage primaryStage, StickHeroGameModel gameModel, StickHeroGameController gameController) {
+    private VBox uiContainer;
+
+    StickHeroGameView(Stage primaryStage, StickHeroGameModel gameModel, StickHeroGameController gameController) {
         this.primaryStage = primaryStage;
         this.gameModel = gameModel;
         this.gameController = gameController;
     }
 
-    public void setupUI(StickHeroGameController gameController) {
+    void setupUI(StickHeroGameController gameController) {
         setupCanvas();
         setupButtons();
         setupLabels();
         setupLayout();
     }
 
-    public void setupCanvas() {
+    void setupCanvas() {
         gameCanvas = new Canvas(800, 600);
         gameModel.setGameCanvas(gameCanvas);
     }
 
-    public void setupButtons() {
+    void setupButtons() {
         startButton = new Button("Start");
         startButton.setOnAction(e -> gameController.startGame(this));
 
@@ -426,7 +420,7 @@ class StickHeroGameView {
         powerUpButton.setOnAction(e -> gameController.activatePowerUp());
     }
 
-    public void setupLabels() {
+    void setupLabels() {
         scoreLabel = new Label("Score: 0");
         cherriesLabel = new Label("Cherries: 0");
         levelLabel = new Label("Level: 1");
@@ -435,14 +429,14 @@ class StickHeroGameView {
         stickProgressBar.setMinWidth(200);
     }
 
-    public void setupLayout() {
+    void setupLayout() {
         HBox topContainer = new HBox(10, scoreLabel, cherriesLabel, levelLabel);
         topContainer.setAlignment(Pos.CENTER);
 
         HBox bottomContainer = new HBox(10, startButton, stickProgressBar, powerUpButton, restartButton);
         bottomContainer.setAlignment(Pos.CENTER);
 
-        VBox uiContainer = new VBox(20, topContainer, bottomContainer);
+        uiContainer = new VBox(20, topContainer, bottomContainer);
         uiContainer.setAlignment(Pos.CENTER);
 
         StackPane root = new StackPane(gameCanvas);
@@ -460,20 +454,32 @@ class StickHeroGameView {
         }
     }
 
-    public void animateBackgroundColorChange() {
+    void animateBackgroundColorChange() {
+        // Implement background color change animation
     }
 
-    public void setupEventHandlers(StickHeroGameController stickHeroGameController) {
+    void setupEventHandlers(StickHeroGameController stickHeroGameController) {
+        // Implement event handlers
     }
 
-    public void disableStartButton() {
+    void disableStartButton() {
+        startButton.setDisable(true);
     }
 
-    public void updateCanvas() {
+    void updateCanvas() {
+        // Implement canvas update logic
     }
 
+    VBox getUIContainer() {
+        return uiContainer;
+    }
 
-    public class StickHeroGame extends Application {
+    Canvas getGameCanvas() {
+        return gameCanvas;
+    }
+}
+
+public class StickHeroGame extends Application {
     public static void main(String[] args) {
         launch(args);
     }
@@ -487,44 +493,8 @@ class StickHeroGameView {
         gameController.initializeGame(gameView);
 
         primaryStage.setTitle("Stick Hero Game");
-        primaryStage.setScene(new Scene(new StackPane(gameView.getGameCanvas())));
-        primaryStage.show();
-    }
-}
-
-    Node getGameCanvas() {
-        return null;
-    }}
-public class StickHeroGame extends Application {
-    private AnimationTimer gameLoop;
-    private StickHeroGameModel gameModel;
-    private StickHeroGameController gameController;
-    private StickHeroGameView gameView;
-
-    public static void main(String[] args) {
-        launch(args);
-    }
-
-    @Override
-    public void start(Stage primaryStage) {
-        gameModel = new StickHeroGameModel();
-        gameController = new StickHeroGameController(primaryStage, gameModel);
-        gameView = new StickHeroGameView(primaryStage, gameModel, gameController);
-
-        gameController.initializeGame(gameView);
-
-        primaryStage.setTitle("Stick Hero Game");
-        StackPane root = new StackPane(gameView.getGameCanvas());
+        StackPane root = new StackPane(gameView.getGameCanvas(), gameView.getUIContainer());
         primaryStage.setScene(new Scene(root));
         primaryStage.show();
-
-        gameLoop = new AnimationTimer() {
-            @Override
-            public void handle(long now) {
-                // Add your game loop logic here
-                gameView.updateCanvas();  // For example, update the canvas in each frame
-            }
-        };
-        gameLoop.start();
     }
 }
