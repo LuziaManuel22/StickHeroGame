@@ -329,7 +329,7 @@ class StickHeroGameModel implements Serializable {
     }
 
     public Platform[] getPlatforms() {
-        return new Platform[0];
+        return platforms.toArray(new Platform[0]);
     }
 }
 
@@ -351,7 +351,7 @@ class StickHeroGameController {
         gameModel.generatePlatform();
         gameModel.extendStick();
         gameModel.spawnCherryOnPlatform();
-        gameView.disableStartButton();
+        // gameView.disableStartButton(); // No need to disable the button here
         startGameLoop(gameView);
     }
 
@@ -437,7 +437,10 @@ class StickHeroGameView {
 
     void setupButtons() {
         startButton = new Button("Start");
-        startButton.setOnAction(e -> gameController.startGame(this));
+        startButton.setOnAction(e -> {
+            gameController.startGame(this);
+            startButton.setDisable(true); // Disable the button after starting the game
+        });
 
         restartButton = new Button("Restart");
         restartButton.setOnAction(e -> gameController.restartGame());
