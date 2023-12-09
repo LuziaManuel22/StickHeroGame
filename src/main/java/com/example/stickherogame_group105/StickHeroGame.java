@@ -1,3 +1,5 @@
+package com.example.stickherogame_group105;
+
 import javafx.animation.AnimationTimer;
 import javafx.application.Application;
 import javafx.geometry.Pos;
@@ -8,21 +10,21 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.image.Image;
+import javafx.scene.input.KeyCode;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
-import org.junit.jupiter.api.Test;
-import org.testng.annotations.Test;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.testng.AssertJUnit.assertFalse;
 
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+
+
 
 // Platform-related code
 interface PlatformFactory {
@@ -52,6 +54,9 @@ abstract class Platform implements Serializable {
     Platform(double width) {
         this.width = width;
         this.height = 10.0;
+    }
+
+    public static void runLater(Object o) {
     }
 
     abstract void draw(GraphicsContext graphicsContext);
@@ -138,6 +143,7 @@ class Cherry extends Platform {
     void spawn(Platform platform) {
         setX(platform.getX() + (platform.getWidth() - getWidth()) / 2);
         setY(platform.getY() - getHeight());
+
     }
 }
 
@@ -206,11 +212,22 @@ class StickHeroGameModel implements Serializable {
         platform.setX(Math.random() * (canvasWidth - platform.getWidth()));
         platform.setY(gameCanvas.getHeight() - platform.getHeight());
         platforms.add(platform);
+
+        // Draw should be handled in the view, not here.
     }
 
     void extendStick() {
         if (!isFalling) {
             stick.extend();
+        }
+    }
+
+    void moveStick(double deltaX) {
+        if (!isFalling) {
+            double newStickLength = stick.getLength() + deltaX;
+            if (newStickLength <= MAX_STICK_LENGTH) {
+                stick.extend();
+            }
         }
     }
 
@@ -327,54 +344,9 @@ class StickHeroGameModel implements Serializable {
     public Platform[] getPlatforms() {
         return platforms.toArray(new Platform[0]);
     }
-}
 
-// Stick Hero Character Class
-class StickHeroCharacter {
-    private Image characterImage;
-    private double x;
-    private double y;
-    private double stickLength;
-    private double stickExtension;
-    private boolean isExtending;
-    private boolean isRetracting;
-
-    public StickHeroCharacter(Image characterImage, double x, double y) {
-        this.characterImage = characterImage;
-        this.x = x;
-        this.y = y;
-        this.stickLength = 0;
-        this.stickExtension = 0;
-        this.isExtending = false;
-        this.isRetracting = false;
-    }
-
-    public void update() {
-        if (isExtending && stickLength < StickHeroGameModel.MAX_STICK_LENGTH) {
-            stickExtension += 2; // Adjust the speed of stick extension
-        } else if (isRetracting && stickLength > 0) {
-            stickExtension -= 2; // Adjust the speed of stick retraction
-        }
-
-        if (stickLength > StickHeroGameModel.MAX_STICK_LENGTH) {
-            // The stick has reached the maximum length, start retracting
-            isExtending = false;
-            isRetracting = true;
-        }
-
-        x += 1; // Adjusting the character's movement speed
-    }
-
-    public void render(GraphicsContext gc) {
-        gc.drawImage(characterImage, x, y);
-        gc.setFill(Color.BLACK);
-        gc.fillRect(x + characterImage.getWidth() / 2 - 1, y + characterImage.getHeight(),
-                stickExtension, 5); // Draw the stick
-    }
-
-    public boolean intersects(Platform platform) {
-        // Implement collision detection logic here
-        return false;
+    public Stick getStick() {
+        return null;
     }
 }
 
@@ -525,7 +497,6 @@ class StickHeroGameView {
         scene.setOnKeyPressed(e -> handleKeyPress(e.getCode()));
         primaryStage.setScene(scene);
         primaryStage.setTitle("Stick Hero Game");
-        primaryStage.show();
     }
 
     private void handleKeyPress(KeyCode code) {
@@ -558,8 +529,7 @@ class StickHeroGameView {
             platform.draw(graphicsContext);
         }
 
-        StickHeroCharacter character = new StickHeroCharacter(new Image("character.png"), gameCanvas.getTranslateX(), gameCanvas.getTranslateY());
-        character.render(graphicsContext);
+
     }
 
     VBox getUIContainer() {
@@ -568,6 +538,55 @@ class StickHeroGameView {
 
     Canvas getGameCanvas() {
         return gameCanvas;
+    }
+}
+
+// Stick Hero Character Class
+class StickHeroCharacter {
+    private Image characterImage;
+    private double x;
+    private double y;
+    private double stickLength;
+    private double stickExtension;
+    private boolean isExtending;
+    private boolean isRetracting;
+
+    public StickHeroCharacter(Image characterImage, double x, double y) {
+        this.characterImage = characterImage;
+        this.x = x;
+        this.y = y;
+        this.stickLength = 0;
+        this.stickExtension = 0;
+        this.isExtending = false;
+        this.isRetracting = false;
+    }
+
+    public void update() {
+        if (isExtending && stickLength < StickHeroGameModel.MAX_STICK_LENGTH) {
+            stickExtension += 2; // Adjust the speed of stick extension
+        } else if (isRetracting && stickLength > 0) {
+            stickExtension -= 2; // Adjust the speed of stick retraction
+        }
+
+        if (stickLength > StickHeroGameModel.MAX_STICK_LENGTH) {
+            // The stick has reached the maximum length, start retracting
+            isExtending = false;
+            isRetracting = true;
+        }
+
+        x += 1; // Adjusting the character's movement speed
+    }
+
+    public void render(GraphicsContext gc) {
+        gc.drawImage(characterImage, x, y);
+        gc.setFill(Color.BLACK);
+        gc.fillRect(x + characterImage.getWidth() / 2 - 1, y + characterImage.getHeight(),
+                stickExtension, 5); // Draw the stick
+    }
+
+    public boolean intersects(Platform platform) {
+        // Implement collision detection logic here
+        return false;
     }
 }
 
@@ -596,53 +615,49 @@ public class StickHeroGame extends Application {
         primaryStage.setScene(new Scene(root, 800, 600));
         primaryStage.show();
     }
+
+    public StickHeroGameModel getGameModel() {
+        return null;
+    }
 }
-public class StickHeroGameModelTest {
+class StickHeroGameTest {
 
     @Test
-    void testIncrementScore() {
+    public void testStickExtension() {
         StickHeroGameModel gameModel = new StickHeroGameModel();
+        gameModel.extendStick();
+        double expectedLength = 2.0; // Assuming the initial stick length is 0
+        assertEquals(expectedLength, gameModel.getStickLength(), 0.01);
+    }
+
+    @Test
+    public void testPlatformCollision() {
+        StickHeroGameModel gameModel = new StickHeroGameModel();
+        gameModel.generatePlatform();
+        gameModel.checkCollision();
+        int expectedScore = 50; // Assuming the collision leads to score increment
+        assertEquals(expectedScore, gameModel.getScore());
+    }
+
+    @Test
+    public void testCherryCollection() {
+        StickHeroGameModel gameModel = new StickHeroGameModel();
+        Cherry cherry = new Cherry();
+        cherry.spawn(new Pillar(100.0)); // Assuming a cherry spawns on a pillar
+        cherry.reactToCollision(gameModel);
+        int expectedScore = 50; // Assuming collecting a cherry increments the score
+        assertEquals(expectedScore, gameModel.getScore());
+    }
+
+    @Test
+    public void testGameReset() {
+        StickHeroGameModel gameModel = new StickHeroGameModel();
+        gameModel.generatePlatform();
+        gameModel.extendStick();
+        gameModel.resetGame();
+        double expectedStickLength = 0.0;
+        assertEquals(expectedStickLength, gameModel.getStickLength(), 0.01);
         assertEquals(0, gameModel.getScore());
-
-        gameModel.incrementScore(50);
-        assertEquals(50, gameModel.getScore());
-
-        gameModel.incrementScore(100);
-        assertEquals(150, gameModel.getScore());
-    }
-
-    @Test
-    void testIncrementCherries() {
-        StickHeroGameModel gameModel = new StickHeroGameModel();
         assertEquals(0, gameModel.getCherries());
-
-        gameModel.incrementCherries();
-        assertEquals(1, gameModel.getCherries());
-
-        gameModel.incrementCherries();
-        assertEquals(2, gameModel.getCherries());
-    }
-
-    @Test
-    void testRevivePlayer() {
-        StickHeroGameModel gameModel = new StickHeroGameModel();
-        assertFalse(gameModel.isRevived());
-
-        gameModel.incrementCherries();
-        gameModel.incrementCherries();
-        gameModel.incrementCherries();
-        gameModel.incrementCherries();
-        gameModel.incrementCherries();
-        gameModel.revivePlayer();
-
-        assertTrue(gameModel.isRevived());
-        assertEquals(0, gameModel.getCherries());
-        assertEquals(0, gameModel.getScore());
-    }
-
-    private void assertEquals(int i, int cherries) {
-    }
-
-    private void assertTrue(boolean revived) {
     }
 }
