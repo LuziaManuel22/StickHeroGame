@@ -9,6 +9,7 @@ import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
+import javafx.scene.image.Image;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
@@ -21,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+// Platform-related code
 interface PlatformFactory {
     Platform createPlatform(double width);
 }
@@ -50,7 +52,7 @@ abstract class Platform implements Serializable {
         this.height = 10.0;
     }
 
-    abstract void draw(GraphicsContext graphicsContext, double canvasWidth);
+    abstract void draw(GraphicsContext graphicsContext);
 
     abstract boolean collidesWith(double heroX, double heroY);
 
@@ -87,7 +89,7 @@ class Pillar extends Platform {
     }
 
     @Override
-    void draw(GraphicsContext graphicsContext, double canvasWidth) {
+    void draw(GraphicsContext graphicsContext) {
         graphicsContext.setFill(Color.BROWN);
         graphicsContext.fillRect(getX(), getY(), getWidth(), getHeight());
     }
@@ -115,7 +117,7 @@ class Cherry extends Platform {
     }
 
     @Override
-    void draw(GraphicsContext graphicsContext, double canvasWidth) {
+    void draw(GraphicsContext graphicsContext) {
         graphicsContext.setFill(Color.RED);
         graphicsContext.fillOval(getX(), getY(), getWidth(), getHeight());
     }
@@ -134,22 +136,20 @@ class Cherry extends Platform {
     void spawn(Platform platform) {
         setX(platform.getX() + (platform.getWidth() - getWidth()) / 2);
         setY(platform.getY() - getHeight());
-        draw();
-    }
-
-    private void draw() {
+        
     }
 }
 
+// Stick-related code
 class Stick {
-    private final double length;
+    private double length;
 
     Stick(double length) {
         this.length = length;
     }
 
     void extend() {
-        // Implement stick extension logic
+        length += 2; // Adjusting the speed of stick extension
     }
 
     double getLength() {
@@ -157,6 +157,7 @@ class Stick {
     }
 }
 
+// Stick Hero Game Model
 class StickHeroGameModel implements Serializable {
     static final double PLATFORM_WIDTH = 100.0;
     static final double MAX_STICK_LENGTH = 200.0;
@@ -205,7 +206,7 @@ class StickHeroGameModel implements Serializable {
         platform.setY(gameCanvas.getHeight() - platform.getHeight());
         platforms.add(platform);
 
-        platform.draw(gameCanvas.getGraphicsContext2D(), canvasWidth);
+        // Draw should be handled in the view, not here.
     }
 
     void extendStick() {
@@ -215,7 +216,12 @@ class StickHeroGameModel implements Serializable {
     }
 
     void moveStick(double deltaX) {
-        // Implement stick movement logic based on user input
+        if (!isFalling) {
+            double newStickLength = stick.getLength() + deltaX;
+            if (newStickLength <= MAX_STICK_LENGTH) {
+                stick.extend();
+            }
+        }
     }
 
     void checkCollision() {
@@ -255,7 +261,7 @@ class StickHeroGameModel implements Serializable {
     }
 
     private void decrementScore() {
-        score = Math.max(0, score - StickHeroGameModel.SCORE_REVIVE_USED);
+        score = Math.max(0, score - SCORE_REVIVE_USED);
     }
 
     int getScore() {
@@ -333,6 +339,7 @@ class StickHeroGameModel implements Serializable {
     }
 }
 
+// Stick Hero Game Controller
 class StickHeroGameController {
     private final StickHeroGameModel gameModel;
 
@@ -351,7 +358,6 @@ class StickHeroGameController {
         gameModel.generatePlatform();
         gameModel.extendStick();
         gameModel.spawnCherryOnPlatform();
-        // gameView.disableStartButton(); // No need to disable the button here
         startGameLoop(gameView);
     }
 
@@ -399,6 +405,7 @@ class StickHeroGameController {
     }
 }
 
+// Stick Hero Game View
 class StickHeroGameView {
     private Stage primaryStage;
     private StickHeroGameModel gameModel;
@@ -409,6 +416,7 @@ class StickHeroGameView {
     private Button startButton;
     private Button restartButton;
     private Button powerUpButton;
+    private Button exitButton;
 
     private Label scoreLabel;
     private Label cherriesLabel;
@@ -439,7 +447,7 @@ class StickHeroGameView {
         startButton = new Button("Start");
         startButton.setOnAction(e -> {
             gameController.startGame(this);
-            startButton.setDisable(true); // Disable the button after starting the game
+            startButton.setDisable(true);
         });
 
         restartButton = new Button("Restart");
@@ -447,6 +455,9 @@ class StickHeroGameView {
 
         powerUpButton = new Button("Power Up!");
         powerUpButton.setOnAction(e -> gameController.activatePowerUp());
+
+        exitButton = new Button("Exit");
+        exitButton.setOnAction(e -> primaryStage.close());
     }
 
     void setupLabels() {
@@ -462,7 +473,7 @@ class StickHeroGameView {
         HBox topContainer = new HBox(10, scoreLabel, cherriesLabel, levelLabel);
         topContainer.setAlignment(Pos.CENTER);
 
-        HBox bottomContainer = new HBox(10, startButton, stickProgressBar, powerUpButton, restartButton);
+        HBox bottomContainer = new HBox(10, startButton, stickProgressBar, powerUpButton, restartButton, exitButton);
         bottomContainer.setAlignment(Pos.CENTER);
 
         uiContainer = new VBox(20, topContainer, bottomContainer);
@@ -480,6 +491,10 @@ class StickHeroGameView {
     private void handleKeyPress(KeyCode code) {
         if (code == KeyCode.SPACE) {
             gameController.flipPlayer();
+        } else if (code == KeyCode.RIGHT) {
+            gameController.moveStick(2);
+        } else if (code == KeyCode.LEFT) {
+            gameController.moveStick(-2);
         }
     }
 
@@ -488,7 +503,7 @@ class StickHeroGameView {
     }
 
     void setupEventHandlers(StickHeroGameController stickHeroGameController) {
-        // Implement event handlers
+        primaryStage.getScene().setOnKeyPressed(e -> handleKeyPress(e.getCode()));
     }
 
     void disableStartButton() {
@@ -500,10 +515,10 @@ class StickHeroGameView {
         graphicsContext.clearRect(0, 0, gameCanvas.getWidth(), gameCanvas.getHeight());
 
         for (Platform platform : gameModel.getPlatforms()) {
-            platform.draw(graphicsContext, gameCanvas.getWidth());
+            platform.draw(graphicsContext);
         }
 
-        // Draw other game elements as needed
+
     }
 
     VBox getUIContainer() {
@@ -515,7 +530,59 @@ class StickHeroGameView {
     }
 }
 
+// Stick Hero Character Class
+class StickHeroCharacter {
+    private Image characterImage;
+    private double x;
+    private double y;
+    private double stickLength;
+    private double stickExtension;
+    private boolean isExtending;
+    private boolean isRetracting;
+
+    public StickHeroCharacter(Image characterImage, double x, double y) {
+        this.characterImage = characterImage;
+        this.x = x;
+        this.y = y;
+        this.stickLength = 0;
+        this.stickExtension = 0;
+        this.isExtending = false;
+        this.isRetracting = false;
+    }
+
+    public void update() {
+        if (isExtending && stickLength < StickHeroGameModel.MAX_STICK_LENGTH) {
+            stickExtension += 2; // Adjust the speed of stick extension
+        } else if (isRetracting && stickLength > 0) {
+            stickExtension -= 2; // Adjust the speed of stick retraction
+        }
+
+        if (stickLength > StickHeroGameModel.MAX_STICK_LENGTH) {
+            // The stick has reached the maximum length, start retracting
+            isExtending = false;
+            isRetracting = true;
+        }
+
+        x += 1; // Adjusting the character's movement speed
+    }
+
+    public void render(GraphicsContext gc) {
+        gc.drawImage(characterImage, x, y);
+        gc.setFill(Color.BLACK);
+        gc.fillRect(x + characterImage.getWidth() / 2 - 1, y + characterImage.getHeight(),
+                stickExtension, 5); // Draw the stick
+    }
+
+    public boolean intersects(Platform platform) {
+        // Implement collision detection logic here
+        return false;
+    }
+}
+
+// Stick Hero Game Class
 public class StickHeroGame extends Application {
+    public static final double WIDTH = 0;
+
     public static void main(String[] args) {
         launch(args);
     }
@@ -538,3 +605,4 @@ public class StickHeroGame extends Application {
         primaryStage.show();
     }
 }
+
